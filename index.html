@@ -894,9 +894,19 @@ async function loadData() {
   try {
     const data = await API.readAll();
 
-    // tasks & recurring come from their dedicated sheets
-    if (data.tasks && data.tasks.length)      tasks       = data.tasks.map(t => ({...t, id: isNaN(t.id) ? t.id : Number(t.id)}));
-    if (data.recurring && data.recurring.length) projects = data.recurring; // note: projects stored in recurring tab
+    // Remap Sheets field names back to app field names (Sheets uses dueDate, app uses due)
+    if (data.tasks && data.tasks.length) {
+      tasks = data.tasks.map(t => ({
+        ...t,
+        id:        isNaN(t.id) ? t.id : Number(t.id),
+        due:       t.dueDate || t.due || '',
+        catId:     t.catId   || '',
+        projId:    t.projId  && t.projId !== '' ? t.projId : null,
+        recurring: t.recurring || 'none',
+        priority:  t.priority  || 'normal',
+        type:      t.type      || 'scheduled',
+      }));
+    }
 
     // categories, projects (full objects) & completions stored as settings
     const s = data.settings || {};
