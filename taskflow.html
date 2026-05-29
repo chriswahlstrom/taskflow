@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f4f1ec;--surface:#fff;--surface2:#eeebe5;--border:#e0dbd2;
+  --text:#1c1814;--text2:#7a7268;--accent:#c84b2f;--accent-soft:#fde8e4;
+  --shadow:0 1px 8px rgba(0,0,0,.07);--shadow-lg:0 6px 28px rgba(0,0,0,.13);
+  --radius:12px;--radius-sm:8px;--header-h:58px;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#13110f;--surface:#1c1916;--surface2:#242018;--border:#2e2a24;--text:#f0ece5;--text2:#857e75;--accent-soft:#3d1810;}
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);height:var(--header-h);display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow);}
+.logo{font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent);}
+.logo span{color:var(--text);}
+nav{display:flex;gap:2px;}
+nav button{background:none;border:none;padding:7px 13px;border-radius:var(--radius-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;}
+nav button:hover{background:var(--surface2);color:var(--text);}
+nav button.active{background:var(--accent);color:#fff;}
+.hdr-right{display:flex;align-items:center;gap:8px;}
+.btn{border:none;border-radius:var(--radius-sm);padding:8px 14px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;display:inline-flex;align-items:center;gap:5px;}
+.btn:hover{opacity:.85;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-secondary{background:var(--surface2);border:1px solid var(--border);color:var(--text);}
+.btn-sm{font-size:11px;padding:5px 10px;}
+.btn-xs{font-size:10px;padding:3px 8px;}
+
+/* VIEWS */
+.view{display:none;padding:20px;max-width:1500px;margin:0 auto;}
+.view.active{display:block;}
+
+/* BOARD */
+.board-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.board-header h2{font-family:'DM Serif Display',serif;font-size:24px;}
+.board-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* OVERDUE BANNER */
+.ov-banner{background:var(--accent-soft);border:1px solid #f5c6be;border-radius:var(--radius-sm);padding:9px 14px;margin-bottom:12px;font-size:13px;color:var(--accent);font-weight:500;}
+@media(prefers-color-scheme:dark){.ov-banner{background:#3d1810;border-color:#5a2018;}}
+
+/* 4-COLUMN GRID — fills viewport height minus header and banner */
+.four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media(max-width:960px){.four-col{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.four-col{grid-template-columns:1fr;}}
+
+.tcol{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 110px);min-height:400px;}
+.tcol-header{padding:11px 14px 9px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;}
+.tcol-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.1px;}
+.tcol-today .tcol-label{color:#c84b2f;}
+.tcol-week .tcol-label{color:#c17d2a;}
+.tcol-later .tcol-label{color:#4a7fa5;}
+.tcol-projects .tcol-label{color:#3a7d52;}
+.tcol-count{background:var(--surface2);color:var(--text2);border-radius:10px;padding:2px 7px;font-size:11px;font-weight:600;}
+.tcol-body{padding:10px;flex:1;overflow-y:auto;}
+.tcol-body::-webkit-scrollbar{width:4px;}
+.tcol-body::-webkit-scrollbar-track{background:transparent;}
+.tcol-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* TASK CARD */
+.task-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 11px;margin-bottom:7px;cursor:pointer;transition:all .15s;}
+.task-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px);}
+.task-card.overdue{border-left:3px solid #c84b2f;}
+.task-card-top{display:flex;align-items:flex-start;gap:7px;margin-bottom:6px;}
+.task-btns{display:flex;flex-direction:column;gap:3px;flex-shrink:0;}
+.icon-btn{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);background:none;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
+.icon-btn.ok:hover{border-color:#3a7d52;background:rgba(58,125,82,.12);}
+.icon-btn.sk:hover{border-color:#c17d2a;background:rgba(193,125,42,.12);}
+.task-title{font-size:13px;font-weight:500;line-height:1.35;flex:1;}
+.task-meta{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
+.tag{font-size:10px;padding:2px 6px;border-radius:6px;font-weight:600;}
+.tag-cat{border:1px solid var(--border);background:var(--surface);}
+.tag-proj{background:var(--surface2);border:1px solid var(--border);}
+.tag-high{background:var(--accent-soft);color:#c84b2f;}
+.tag-rec{background:#e8f0fe;color:#1a56db;}
+.tag-missed{background:#fff3e0;color:#c17d2a;}
+@media(prefers-color-scheme:dark){.tag-rec{background:#1a2540;color:#7ba7f5;}.tag-missed{background:#2a1e0a;color:#d4924a;}}
+.due-chip{font-size:10px;color:var(--text2);margin-left:auto;white-space:nowrap;}
+.due-chip.ov{color:#c84b2f;font-weight:700;}
+.empty-col{text-align:center;padding:24px 10px;color:var(--text2);font-size:12px;}
+
+/* PROJECT TILES in 4th column */
+.proj-tile{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;}
+.proj-tile-header{display:flex;align-items:center;gap:8px;padding:8px 10px;cursor:pointer;transition:background .15s;user-select:none;}
+.proj-tile-header:hover{background:var(--border);}
+.proj-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.proj-tile-name{font-size:12px;font-weight:600;flex:1;}
+.proj-tile-cat{font-size:10px;color:var(--text2);}
+.proj-tile-count{font-size:10px;color:var(--text2);margin-right:4px;}
+.proj-chev{font-size:10px;color:var(--text2);transition:transform .2s;}
+.proj-chev.open{transform:rotate(90deg);}
+.proj-tile-tasks{display:none;border-top:1px solid var(--border);padding:6px 10px 8px;}
+.proj-tile-tasks.open{display:block;}
+.proj-task-row{display:flex;align-items:center;gap:7px;padding:5px 2px;border-bottom:1px solid var(--border);cursor:pointer;}
+.proj-task-row:last-of-type{border-bottom:none;}
+.proj-task-row:hover .proj-task-name{color:var(--accent);}
+.proj-complete-btn{width:15px;height:15px;border-radius:50%;border:1.5px solid var(--border);background:none;cursor:pointer;flex-shrink:0;transition:all .15s;}
+.proj-complete-btn:hover{border-color:#3a7d52;background:rgba(58,125,82,.12);}
+.proj-task-name{font-size:12px;flex:1;line-height:1.3;}
+.proj-add-row{display:flex;align-items:center;gap:4px;padding:5px 2px 0;font-size:11px;color:var(--text2);cursor:pointer;background:none;border:none;font-family:'DM Sans',sans-serif;transition:color .15s;}
+.proj-add-row:hover{color:var(--accent);}
+
+/* CAT GROUP label above project tiles */
+.cat-group-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--text2);padding:4px 2px 3px;margin-top:8px;}
+.cat-group-label:first-child{margin-top:0;}
+
+/* DASHBOARD */
+.dash-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+@media(max-width:900px){.dash-grid{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:6px;}
+.stat-value{font-family:'DM Serif Display',serif;font-size:34px;line-height:1;}
+.stat-sub{font-size:11px;color:var(--text2);margin-top:3px;}
+.good{color:#3a7d52;}.bad{color:#c84b2f;}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+@media(max-width:700px){.chart-row{grid-template-columns:1fr;}}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.chart-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:14px;}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.bar-lbl{font-size:11px;color:var(--text2);width:90px;flex-shrink:0;text-align:right;}
+.bar-track{flex:1;height:7px;background:var(--surface2);border-radius:4px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:4px;transition:width .6s;}
+.bar-val{font-size:11px;font-weight:600;width:32px;}
+.weekly-wrap{display:flex;align-items:flex-end;gap:6px;height:110px;}
+.wbar{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.wbar-inner{width:100%;background:#c84b2f;border-radius:3px 3px 0 0;min-height:2px;transition:height .6s;}
+.wbar-lbl{font-size:9px;color:var(--text2);}
+.wbar-val{font-size:9px;font-weight:600;}
+.log-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;}
+.log-table{width:100%;border-collapse:collapse;font-size:12px;}
+.log-table th{text-align:left;padding:7px 10px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);border-bottom:1px solid var(--border);}
+.log-table td{padding:9px 10px;border-bottom:1px solid var(--border);}
+.log-table tr:last-child td{border-bottom:none;}
+.badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:700;}
+.badge-y{background:#e6f4ea;color:#3a7d52;}
+.badge-n{background:var(--accent-soft);color:#c84b2f;}
+.badge-s{background:var(--surface2);color:var(--text2);}
+@media(prefers-color-scheme:dark){.badge-y{background:#112218;}.badge-n{background:#3d1810;}}
+
+/* MODALS shared */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:200;align-items:center;justify-content:center;padding:16px;}
+.overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:var(--radius);padding:26px;width:100%;max-width:460px;box-shadow:var(--shadow-lg);max-height:90vh;overflow-y:auto;}
+.modal-sm{max-width:380px;}
+.modal h3{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:18px;}
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:5px;}
+.fg input,.fg select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;}
+.fg input:focus,.fg select:focus{border-color:#c84b2f;}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.type-toggle{display:flex;gap:6px;}
+.type-btn{flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;text-align:center;}
+.type-btn.active{background:#c84b2f;border-color:#c84b2f;color:#fff;}
+.modal-actions{display:flex;gap:8px;justify-content:space-between;margin-top:20px;align-items:center;}
+.btn-del{background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;font-family:'DM Sans',sans-serif;font-size:12px;color:#c84b2f;cursor:pointer;}
+.hidden{display:none!important;}
+
+/* COLOR PICKER */
+.color-swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.swatch{width:24px;height:24px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;}
+.swatch.active{border-color:var(--text);transform:scale(1.15);}
+
+/* CATCHUP */
+.catchup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:300;align-items:center;justify-content:center;padding:16px;}
+.catchup-overlay.open{display:flex;}
+.catchup-modal{background:var(--surface);border-radius:var(--radius);padding:26px;width:100%;max-width:420px;box-shadow:var(--shadow-lg);}
+.catchup-modal h3{font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:6px;}
+.catchup-modal p{font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.5;}
+.catchup-options{display:flex;flex-direction:column;gap:8px;margin-bottom:20px;}
+.cu-opt{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;}
+.cu-opt:hover{border-color:#c84b2f;background:var(--accent-soft);}
+.cu-opt input{accent-color:#c84b2f;margin-top:2px;flex-shrink:0;}
+.cu-opt-title{font-size:13px;font-weight:500;}
+.cu-opt-sub{font-size:11px;color:var(--text2);margin-top:2px;}
+
+/* NOTIF */
+.notif-wrap{position:fixed;top:66px;right:14px;z-index:400;display:flex;flex-direction:column;gap:6px;pointer-events:none;}
+.notif{background:var(--surface);border:1px solid var(--border);border-left:3px solid #c84b2f;border-radius:var(--radius-sm);padding:10px 14px;box-shadow:var(--shadow-lg);font-size:12px;max-width:280px;animation:slideIn .25s ease;}
+@keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:translateX(0);opacity:1}}
+.notif-title{font-weight:700;margin-bottom:2px;}
+.notif-body{color:var(--text2);}
+
+/* SYNC BADGE */
+#sync-badge{position:fixed;bottom:1rem;right:1rem;font-size:0.7rem;padding:0.3rem 0.8rem;border-radius:99px;opacity:0;transition:opacity .3s;pointer-events:none;font-family:'DM Sans',sans-serif;font-weight:600;z-index:500;}
+#sync-badge.saving{background:#fbbf24;color:#000;opacity:1;}
+#sync-badge.synced{background:#3a7d52;color:#fff;opacity:1;}
+#sync-badge.error{background:#c84b2f;color:#fff;opacity:1;}
+
+/* MANAGE PANEL */
+.manage-section{margin-bottom:20px;}
+.manage-section h4{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:10px;}
+.manage-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);}
+.manage-row:last-child{border-bottom:none;}
+.manage-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.manage-name{flex:1;font-size:13px;}
+.manage-sub{font-size:11px;color:var(--text2);}
+.manage-del{background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;transition:color .15s;}
+.manage-del:hover{color:#c84b2f;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Task<span>Flow</span></div>
+  <nav>
+    <button class="active" onclick="showView('board')">Board</button>
+    <button onclick="showView('dashboard')">Dashboard</button>
+  </nav>
+  <div class="hdr-right">
+    <button class="btn btn-secondary btn-sm" onclick="openManage()">⚙ Manage</button>
+    <button class="btn btn-primary btn-sm" onclick="openTaskModal(null)">＋ Add Task</button>
+  </div>
+</header>
+
+<div class="notif-wrap" id="notifWrap"></div>
+<div id="sync-badge"></div>
+
+<!-- BOARD -->
+<div id="board" class="view active">
+  <div id="ovBanner" class="ov-banner" style="display:none"></div>
+  <div class="four-col">
+    <div class="tcol tcol-today">
+      <div class="tcol-header"><span class="tcol-label">Today</span><span class="tcol-count" id="cnt-today">0</span></div>
+      <div class="tcol-body" id="col-today"></div>
+    </div>
+    <div class="tcol tcol-week">
+      <div class="tcol-header"><span class="tcol-label">This Week</span><span class="tcol-count" id="cnt-week">0</span></div>
+      <div class="tcol-body" id="col-week"></div>
+    </div>
+    <div class="tcol tcol-later">
+      <div class="tcol-header"><span class="tcol-label">Later</span><span class="tcol-count" id="cnt-later">0</span></div>
+      <div class="tcol-body" id="col-later"></div>
+    </div>
+    <div class="tcol tcol-projects">
+      <div class="tcol-header"><span class="tcol-label">Projects</span><span class="tcol-count" id="cnt-proj">0</span></div>
+      <div class="tcol-body" id="col-projects"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="view">
+  <div class="board-header"><h2>Dashboard</h2></div>
+  <div class="dash-grid">
+    <div class="stat-card"><div class="stat-label">On-Time Rate</div><div class="stat-value" id="s-ontime">—</div><div class="stat-sub">scheduled tasks only</div></div>
+    <div class="stat-card"><div class="stat-label">This Week</div><div class="stat-value" id="s-week">—</div><div class="stat-sub">completed</div></div>
+    <div class="stat-card"><div class="stat-label">This Month</div><div class="stat-value" id="s-month">—</div><div class="stat-sub">completed</div></div>
+    <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-value" id="s-overdue">—</div><div class="stat-sub">need attention</div></div>
+  </div>
+  <div class="chart-row">
+    <div class="chart-card"><div class="chart-title">On-Time by Category</div><div id="catChart"></div></div>
+    <div class="chart-card"><div class="chart-title">Weekly Completions</div><div class="weekly-wrap" id="weeklyChart"></div></div>
+  </div>
+  <div class="log-wrap">
+    <div class="chart-title" style="margin-bottom:12px">Completion Log</div>
+    <table class="log-table">
+      <thead><tr><th>Task</th><th>Category</th><th>Project</th><th>Due</th><th>Completed</th><th>On Time</th><th>Variance</th></tr></thead>
+      <tbody id="logTable"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TASK MODAL -->
+<div class="overlay" id="taskOverlay">
+  <div class="modal">
+    <h3 id="taskModalTitle">New Task</h3>
+    <div class="fg">
+      <label>Task Type</label>
+      <div class="type-toggle">
+        <button class="type-btn active" id="typeScheduled" onclick="setType('scheduled')">📅 Scheduled</button>
+        <button class="type-btn" id="typeProject" onclick="setType('project')">📁 Project</button>
+      </div>
+    </div>
+    <div class="fg"><label>Task Name</label><input type="text" id="fTitle" placeholder="What needs to be done?"></div>
+    <div class="frow">
+      <div class="fg"><label>Category</label><select id="fCat" onchange="populateProjSelect()"></select></div>
+      <div class="fg" id="fProjGroup"><label>Project <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label><select id="fProj"></select></div>
+    </div>
+    <div class="fg"><label>Priority</label><select id="fPriority"><option value="normal">Normal</option><option value="high">High</option></select></div>
+    <div id="scheduledFields">
+      <div class="frow">
+        <div class="fg"><label>Due Date</label><input type="date" id="fDue"></div>
+        <div class="fg"><label>Recurring</label>
+          <select id="fRecurring">
+            <option value="none">None</option><option value="daily">Daily</option>
+            <option value="weekly">Weekly</option><option value="fortnightly">Fortnightly</option><option value="monthly">Monthly</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-del hidden" id="btnDelete" onclick="deleteTask()">Delete</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="closeTaskModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveTask()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGE MODAL -->
+<div class="overlay" id="manageOverlay">
+  <div class="modal">
+    <h3>Manage Categories & Projects</h3>
+    <!-- Add Category -->
+    <div class="manage-section">
+      <h4>Add Category</h4>
+      <div class="frow" style="align-items:flex-end">
+        <div class="fg" style="margin-bottom:0"><label>Name</label><input type="text" id="newCatName" placeholder="e.g. Finance"></div>
+        <button class="btn btn-primary" onclick="addCategory()" style="height:39px">Add</button>
+      </div>
+      <div style="margin-top:10px">
+        <label style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);display:block;margin-bottom:6px">Colour</label>
+        <div class="color-swatches" id="catColorSwatches"></div>
+      </div>
+    </div>
+    <!-- Existing Categories -->
+    <div class="manage-section">
+      <h4>Categories</h4>
+      <div id="catList"></div>
+    </div>
+    <!-- Add Project -->
+    <div class="manage-section">
+      <h4>Add Project</h4>
+      <div class="frow">
+        <div class="fg"><label>Project Name</label><input type="text" id="newProjName" placeholder="e.g. BSM WIP"></div>
+        <div class="fg"><label>Category</label><select id="newProjCat"></select></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="addProject()">Add Project</button>
+    </div>
+    <!-- Existing Projects -->
+    <div class="manage-section">
+      <h4>Projects</h4>
+      <div id="projList"></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:8px">
+      <button class="btn btn-secondary" onclick="closeManage()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CATCHUP MODAL -->
+<div class="catchup-overlay" id="catchupOverlay">
+  <div class="catchup-modal">
+    <h3>Missed Occurrences</h3>
+    <p id="catchupDesc"></p>
+    <div class="catchup-options" id="catchupOptions"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary" onclick="closeCatchup()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmCatchup()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── API ADAPTER ────────────────────────────────────────────────────────────
+const API = (function() {
+  const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxjc61hgxn9e9rBpn0m8TZmAlFq-0_ZL9xHfTMR-8e5Si9m6uAoO8GeQAYfQcycN67K8A/exec';
+
+  async function post(payload) {
+    const res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    return res.json();
+  }
+
+  async function get(params) {
+    const qs = new URLSearchParams(params).toString();
+    const res = await fetch(`${ENDPOINT}?${qs}`);
+    return res.json();
+  }
+
+  return {
+    readAll:        ()       => get({ action: 'readAll' }),
+    saveTasks:      (data)   => post({ action: 'writeTasks',    data }),
+    saveRecurring:  (data)   => post({ action: 'writeRecurring', data }),
+    addCompletion:  (data)   => post({ action: 'addCompletion',  data }),
+    readCompletions:(days=30)=> get({ action: 'readCompletions', days }),
+    writeSetting:   (key, value) => post({ action: 'writeSetting', key, value })
+  };
+})();
+
+// ── SYNC INDICATOR ─────────────────────────────────────────────────────────
+function showSyncIndicator(state) {
+  const badge = document.getElementById('sync-badge');
+  badge.className = state;
+  badge.textContent = state === 'saving' ? '↑ saving…' : state === 'synced' ? '✓ synced' : '⚠ sync error';
+  if (state === 'synced') setTimeout(() => { badge.className = ''; }, 2500);
+}
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let tasks       = [];
+let completions = [];
+let categories  = [];
+let projects    = [];
+
+let editingId   = null;
+let taskType    = 'scheduled';
+let catchupTaskId = null;
+let catchupChoice = 'today';
+let selectedCatColor = '#3a7d52';
+
+const CAT_COLORS = ['#3a7d52','#c17d2a','#1a56db','#7b4fa6','#c84b2f','#0891b2','#be185d','#854d0e','#166534','#1e3a5f'];
+
+function fmtDate(ds){
+  if(!ds)return'—';
+  const d=new Date(ds+'T00:00:00');
+  return d.toLocaleDateString('en-AU',{weekday:'long',day:'numeric',month:'short'});
+}
+function catColor(catId){
+  const c=categories.find(c=>c.id===catId);return c?c.color:'#888';
+}
+function catName(catId){
+  const c=categories.find(c=>c.id===catId);return c?c.name:'—';
+}
+function projName(projId){
+  const p=projects.find(p=>p.id===projId);return p?p.name:'—';
+}
+
+// ── SEED (first run only) — now handled by runSeed() at bottom ────────────
+
+
+
+// ── SAVE (write-through: localStorage immediately, API debounced 2s) ───────
+let saveTimer = null;
+function save() {
+  // Write to localStorage immediately (fast, works offline)
+  localStorage.setItem('tf3_tasks',       JSON.stringify(tasks));
+  localStorage.setItem('tf3_completions', JSON.stringify(completions));
+  localStorage.setItem('tf3_categories',  JSON.stringify(categories));
+  localStorage.setItem('tf3_projects',    JSON.stringify(projects));
+
+  // Debounce the API write — 2s after the last change
+  showSyncIndicator('saving');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await Promise.all([
+        API.saveTasks(tasks),
+        API.saveRecurring(projects) // reusing writeRecurring slot for projects — see note below
+      ]);
+      // Also persist categories & projects as a setting (they're small)
+      await Promise.all([
+        API.writeSetting('tf3_categories', JSON.stringify(categories)),
+        API.writeSetting('tf3_projects',   JSON.stringify(projects)),
+        API.writeSetting('tf3_completions',JSON.stringify(completions))
+      ]);
+      showSyncIndicator('synced');
+    } catch (err) {
+      showSyncIndicator('error');
+      console.error('Sync failed:', err);
+    }
+  }, 2000);
+}
+
+// ── VIEWS ─────────────────────────────────────────────────────────────────
+function showView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById(v).classList.add('active');
+  document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('active',(v==='board'&&i===0)||(v==='dashboard'&&i===1)));
+  v==='dashboard'?renderDash():renderBoard();
+}
+
+// ── BOARD ─────────────────────────────────────────────────────────────────
+function renderBoard(){
+  const now=new Date();now.setHours(0,0,0,0);
+  const endWeek=new Date(now);endWeek.setDate(endWeek.getDate()+7);
+  const sched=tasks.filter(t=>t.type==='scheduled');
+  const overdue=sched.filter(t=>new Date(t.due)<now);
+
+  const banner=document.getElementById('ovBanner');
+  if(overdue.length){
+    banner.style.display='block';
+    banner.innerHTML=`⚠️ <strong>${overdue.length} overdue:</strong> `+overdue.map(t=>`<span style="cursor:pointer;text-decoration:underline" onclick="openTaskModal(${t.id})">${t.title}</span>`).join(', ');
+  } else banner.style.display='none';
+
+  renderTimeCol('today', sched.filter(t=>new Date(t.due)<=now), now);
+  renderTimeCol('week',  sched.filter(t=>{const d=new Date(t.due);return d>now&&d<endWeek;}), now);
+  renderTimeCol('later', sched.filter(t=>new Date(t.due)>=endWeek), now);
+  renderProjectsCol();
+}
+
+function renderTimeCol(colId, list, now){
+  const cnt=document.getElementById('cnt-'+colId);
+  const el=document.getElementById('col-'+colId);
+  cnt.textContent=list.length;
+  if(!list.length){el.innerHTML='<div class="empty-col">All clear ✓</div>';return;}
+  list.sort((a,b)=>new Date(a.due)-new Date(b.due));
+  el.innerHTML=list.map(t=>{
+    const isOv=new Date(t.due)<now;
+    const missed=isOv?Math.floor((now-new Date(t.due))/86400000):0;
+    const isRec=t.recurring!=='none';
+    const color=catColor(t.catId);
+    const pName=t.projId?projName(t.projId):null;
+    return `<div class="task-card${isOv?' overdue':''}" onclick="openTaskModal(${t.id})">
+      <div class="task-card-top">
+        <div class="task-btns">
+          <button class="icon-btn ok" onclick="event.stopPropagation();handleComplete(${t.id})" title="Complete">✓</button>
+          ${isRec?`<button class="icon-btn sk" onclick="event.stopPropagation();handleSkip(${t.id})" title="Skip — not needed">⏭</button>`:''}
+        </div>
+        <div class="task-title">${t.title}</div>
+      </div>
+      <div class="task-meta">
+        <span class="tag tag-cat" style="color:${color};border-color:${color}40">${catName(t.catId)}</span>
+        ${pName?`<span class="tag tag-proj">${pName}</span>`:''}
+        ${t.priority==='high'?'<span class="tag tag-high">High</span>':''}
+        ${isRec?`<span class="tag tag-rec">↻ ${t.recurring}</span>`:''}
+        ${missed>0?`<span class="tag tag-missed">+${missed}d</span>`:''}
+        <span class="due-chip${isOv?' ov':''}">${fmtDate(t.due)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderProjectsCol(){
+  const projTasks=tasks.filter(t=>t.type==='project');
+  document.getElementById('cnt-proj').textContent=projTasks.length;
+  const el=document.getElementById('col-projects');
+  if(!projTasks.length&&!projects.length){el.innerHTML='<div class="empty-col">No projects yet.<br>Use ⚙ Manage to create one.</div>';return;}
+
+  // Group projects by category
+  let html='';
+  categories.forEach(cat=>{
+    const catProjs=projects.filter(p=>p.catId===cat.id);
+    if(!catProjs.length)return;
+    html+=`<div class="cat-group-label" style="color:${cat.color}">${cat.name}</div>`;
+    catProjs.forEach(proj=>{
+      const pts=projTasks.filter(t=>t.projId===proj.id);
+      const open=localStorage.getItem('popen_'+proj.id)==='1';
+      html+=`<div class="proj-tile">
+        <div class="proj-tile-header" onclick="toggleProjTile('${proj.id}')">
+          <div class="proj-dot" style="background:${cat.color}"></div>
+          <div class="proj-tile-name">${proj.name}</div>
+          <div class="proj-tile-count">${pts.length}</div>
+          <div class="proj-chev${open?' open':''}" id="pchev-${proj.id}">▶</div>
+        </div>
+        <div class="proj-tile-tasks${open?' open':''}" id="ptasks-${proj.id}">
+          ${pts.map(t=>`<div class="proj-task-row" onclick="openTaskModal(${t.id})">
+            <button class="proj-complete-btn" onclick="event.stopPropagation();handleComplete(${t.id})" title="Complete"></button>
+            <div class="proj-task-name">${t.title}${t.priority==='high'?` <span style="color:#c84b2f;font-size:9px;font-weight:700">HIGH</span>`:''}</div>
+          </div>`).join('')}
+          <button class="proj-add-row" onclick="openTaskModal(null,'project','${proj.id}')">＋ Add task</button>
+        </div>
+      </div>`;
+    });
+    // Tasks in this category without a project
+    const loose=projTasks.filter(t=>t.catId===cat.id&&!t.projId);
+    if(loose.length){
+      html+=`<div class="proj-tile">
+        <div class="proj-tile-header" onclick="toggleProjTile('loose-${cat.id}')">
+          <div class="proj-dot" style="background:${cat.color};opacity:.4"></div>
+          <div class="proj-tile-name" style="color:var(--text2)">Unassigned</div>
+          <div class="proj-tile-count">${loose.length}</div>
+          <div class="proj-chev" id="pchev-loose-${cat.id}">▶</div>
+        </div>
+        <div class="proj-tile-tasks" id="ptasks-loose-${cat.id}">
+          ${loose.map(t=>`<div class="proj-task-row" onclick="openTaskModal(${t.id})">
+            <button class="proj-complete-btn" onclick="event.stopPropagation();handleComplete(${t.id})"></button>
+            <div class="proj-task-name">${t.title}</div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    }
+  });
+  el.innerHTML=html||'<div class="empty-col">No project tasks yet</div>';
+}
+
+function toggleProjTile(id){
+  const el=document.getElementById('ptasks-'+id);
+  const chev=document.getElementById('pchev-'+id);
+  if(!el)return;
+  const open=el.classList.toggle('open');
+  if(chev)chev.classList.toggle('open',open);
+  localStorage.setItem('popen_'+id,open?'1':'0');
+}
+
+// ── COMPLETE / SKIP ────────────────────────────────────────────────────────
+function handleComplete(id){
+  const task=tasks.find(t=>t.id===id);
+  if(!task)return;
+  const now=new Date();now.setHours(0,0,0,0);
+  const today=now.toISOString().split('T')[0];
+  if(task.type==='project'){
+    completions.push({id:Date.now(),title:task.title,catId:task.catId,projId:task.projId,due:null,completedDate:today,onTime:true,type:'project'});
+    tasks=tasks.filter(t=>t.id!==id);
+    save();renderBoard();showNotif('✓ Done',`"${task.title}" completed.`);return;
+  }
+  const dueDate=new Date(task.due);dueDate.setHours(0,0,0,0);
+  const missed=Math.floor((now-dueDate)/86400000);
+  if(task.recurring!=='none'&&missed>1){
+    catchupTaskId=id;showCatchup(task,missed,today,dueDate);
+  } else {
+    logCompletion(task,task.due,today);
+    advanceRecurring(task);
+    save();renderBoard();
+    showNotif('✓ Completed',task.recurring!=='none'?`"${task.title}" logged. Next due ${fmtDate(task.due)}.`:`"${task.title}" done.`);
+  }
+}
+
+function handleSkip(id){
+  const task=tasks.find(t=>t.id===id);
+  if(!task||task.recurring==='none')return;
+  completions.push({id:Date.now(),title:task.title,catId:task.catId,projId:task.projId,due:task.due,completedDate:new Date().toISOString().split('T')[0],onTime:null,type:'skipped'});
+  advanceRecurring(task);
+  save();renderBoard();
+  showNotif('⏭ Skipped',`"${task.title}" skipped — not counted in stats. Next due ${fmtDate(task.due)}.`);
+}
+
+function logCompletion(task,dueStr,compStr){
+  completions.push({id:Date.now()+Math.random(),title:task.title,catId:task.catId,projId:task.projId,due:dueStr,completedDate:compStr,onTime:compStr<=dueStr,type:'scheduled'});
+}
+
+function advanceRecurring(task){
+  if(task.recurring==='none'){tasks=tasks.filter(t=>t.id!==task.id);return;}
+  const now=new Date();now.setHours(0,0,0,0);
+  const base=new Date(Math.max(new Date(task.due).getTime(),now.getTime()));
+  if(task.recurring==='daily')base.setDate(base.getDate()+1);
+  else if(task.recurring==='weekly')base.setDate(base.getDate()+7);
+  else if(task.recurring==='fortnightly')base.setDate(base.getDate()+14);
+  else if(task.recurring==='monthly')base.setMonth(base.getMonth()+1);
+  task.due=base.toISOString().split('T')[0];
+}
+
+// ── CATCHUP ────────────────────────────────────────────────────────────────
+function showCatchup(task,missed,today,dueDate){
+  catchupChoice='today';
+  document.getElementById('catchupDesc').textContent=`"${task.title}" is ${missed} day(s) overdue. How would you like to handle it?`;
+  const df=fmtDate(task.due);
+  document.getElementById('catchupOptions').innerHTML=`
+    <label class="cu-opt"><input type="radio" name="cu" value="today" checked onchange="catchupChoice='today'">
+      <div><div class="cu-opt-title">Completed today (late)</div><div class="cu-opt-sub">Logged as late. Due was ${df}.</div></div></label>
+    <label class="cu-opt"><input type="radio" name="cu" value="due" onchange="catchupChoice='due'">
+      <div><div class="cu-opt-title">Completed on due date (on time)</div><div class="cu-opt-sub">Logged as on-time on ${df} — use if you forgot to tick off.</div></div></label>
+    <label class="cu-opt"><input type="radio" name="cu" value="skip" onchange="catchupChoice='skip'">
+      <div><div class="cu-opt-title">Skip — wasn't needed</div><div class="cu-opt-sub">Not counted in stats. Advances to next occurrence.</div></div></label>`;
+  document.getElementById('catchupOverlay').classList.add('open');
+}
+
+function confirmCatchup(){
+  const task=tasks.find(t=>t.id===catchupTaskId);
+  if(!task)return closeCatchup();
+  const today=new Date().toISOString().split('T')[0];
+  if(catchupChoice==='today')logCompletion(task,task.due,today);
+  else if(catchupChoice==='due')logCompletion(task,task.due,task.due);
+  else completions.push({id:Date.now(),title:task.title,catId:task.catId,projId:task.projId,due:task.due,completedDate:today,onTime:null,type:'skipped'});
+  advanceRecurring(task);save();closeCatchup();renderBoard();
+  showNotif('✓ Updated',`"${task.title}" handled. Next due ${fmtDate(task.due)}.`);
+}
+function closeCatchup(){document.getElementById('catchupOverlay').classList.remove('open');catchupTaskId=null;}
+
+// ── TASK MODAL ─────────────────────────────────────────────────────────────
+function setType(t){
+  taskType=t;
+  document.getElementById('typeScheduled').classList.toggle('active',t==='scheduled');
+  document.getElementById('typeProject').classList.toggle('active',t==='project');
+  document.getElementById('scheduledFields').classList.toggle('hidden',t==='project');
+}
+
+function populateCatSelect(selectId, selectedId){
+  const sel=document.getElementById(selectId);
+  sel.innerHTML=categories.map(c=>`<option value="${c.id}"${c.id===selectedId?' selected':''}>${c.name}</option>`).join('');
+}
+
+function populateProjSelect(){
+  const catId=document.getElementById('fCat').value;
+  const catProjs=projects.filter(p=>p.catId===catId);
+  const sel=document.getElementById('fProj');
+  sel.innerHTML='<option value="">None</option>'+catProjs.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+}
+
+function openTaskModal(id, forceType, forceProjId){
+  editingId=id;
+  document.getElementById('taskModalTitle').textContent=id?'Edit Task':'New Task';
+  document.getElementById('btnDelete').classList.toggle('hidden',!id);
+  document.getElementById('fDue').value=new Date().toISOString().split('T')[0];
+  document.getElementById('fRecurring').value='none';
+  document.getElementById('fPriority').value='normal';
+  document.getElementById('fTitle').value='';
+  populateCatSelect('fCat', categories[0]?.id);
+  populateProjSelect();
+  if(id){
+    const t=tasks.find(t=>t.id===id);if(!t)return;
+    setType(t.type||'scheduled');
+    document.getElementById('fTitle').value=t.title;
+    populateCatSelect('fCat',t.catId);
+    populateProjSelect();
+    if(t.projId)document.getElementById('fProj').value=t.projId;
+    document.getElementById('fPriority').value=t.priority;
+    if(t.due)document.getElementById('fDue').value=t.due;
+    document.getElementById('fRecurring').value=t.recurring||'none';
+  } else {
+    setType(forceType||'scheduled');
+    if(forceProjId){
+      const proj=projects.find(p=>p.id===forceProjId);
+      if(proj){populateCatSelect('fCat',proj.catId);populateProjSelect();document.getElementById('fProj').value=forceProjId;}
+    }
+  }
+  document.getElementById('taskOverlay').classList.add('open');
+}
+
+function closeTaskModal(){document.getElementById('taskOverlay').classList.remove('open');}
+
+function saveTask(){
+  const title=document.getElementById('fTitle').value.trim();
+  if(!title){document.getElementById('fTitle').focus();return;}
+  const data={title,type:taskType,catId:document.getElementById('fCat').value,projId:document.getElementById('fProj').value||null,priority:document.getElementById('fPriority').value,due:taskType==='scheduled'?document.getElementById('fDue').value:null,recurring:taskType==='scheduled'?document.getElementById('fRecurring').value:'none'};
+  if(editingId)Object.assign(tasks.find(t=>t.id===editingId),data);
+  else tasks.push({id:Date.now(),...data,created:new Date().toISOString().split('T')[0]});
+  save();closeTaskModal();renderBoard();
+}
+
+function deleteTask(){
+  if(!editingId)return;
+  if(!confirm('Delete this task?'))return;
+  tasks=tasks.filter(t=>t.id!==editingId);
+  save();closeTaskModal();renderBoard();
+}
+
+// ── MANAGE MODAL ───────────────────────────────────────────────────────────
+let selectedCatColorIdx=0;
+
+function openManage(){
+  renderColorSwatches();
+  populateCatSelect('newProjCat');
+  renderManageLists();
+  document.getElementById('manageOverlay').classList.add('open');
+}
+function closeManage(){document.getElementById('manageOverlay').classList.remove('open');renderBoard();}
+
+function renderColorSwatches(){
+  document.getElementById('catColorSwatches').innerHTML=CAT_COLORS.map((c,i)=>`
+    <div class="swatch${i===selectedCatColorIdx?' active':''}" style="background:${c}" onclick="selectColor(${i})" title="${c}"></div>`).join('');
+  selectedCatColor=CAT_COLORS[selectedCatColorIdx];
+}
+
+function selectColor(i){
+  selectedCatColorIdx=i;selectedCatColor=CAT_COLORS[i];renderColorSwatches();
+}
+
+function addCategory(){
+  const name=document.getElementById('newCatName').value.trim();
+  if(!name)return;
+  const id='cat-'+Date.now();
+  categories.push({id,name,color:selectedCatColor});
+  document.getElementById('newCatName').value='';
+  save();renderManageLists();populateCatSelect('newProjCat');
+  showNotif('✓ Category added',name);
+}
+
+function deleteCategory(id){
+  if(tasks.some(t=>t.catId===id)||projects.some(p=>p.catId===id)){
+    alert('Cannot delete — tasks or projects exist in this category.');return;
+  }
+  categories=categories.filter(c=>c.id!==id);
+  save();renderManageLists();
+}
+
+function addProject(){
+  const name=document.getElementById('newProjName').value.trim();
+  const catId=document.getElementById('newProjCat').value;
+  if(!name||!catId)return;
+  projects.push({id:'proj-'+Date.now(),name,catId});
+  document.getElementById('newProjName').value='';
+  save();renderManageLists();
+  showNotif('✓ Project added',name);
+}
+
+function deleteProject(id){
+  if(tasks.some(t=>t.projId===id)){alert('Cannot delete — tasks exist in this project.');return;}
+  projects=projects.filter(p=>p.id!==id);
+  save();renderManageLists();
+}
+
+function renderManageLists(){
+  document.getElementById('catList').innerHTML=categories.length?categories.map(c=>`
+    <div class="manage-row">
+      <div class="manage-dot" style="background:${c.color}"></div>
+      <div class="manage-name">${c.name}</div>
+      <button class="manage-del" onclick="deleteCategory('${c.id}')" title="Delete">✕</button>
+    </div>`).join(''):'<div style="color:var(--text2);font-size:13px">No categories yet</div>';
+
+  document.getElementById('projList').innerHTML=projects.length?projects.map(p=>{
+    const cat=categories.find(c=>c.id===p.catId);
+    return`<div class="manage-row">
+      <div class="manage-dot" style="background:${cat?cat.color:'#888'}"></div>
+      <div>
+        <div class="manage-name">${p.name}</div>
+        <div class="manage-sub">${cat?cat.name:'Unknown category'}</div>
+      </div>
+      <button class="manage-del" onclick="deleteProject('${p.id}')" title="Delete">✕</button>
+    </div>`}).join(''):'<div style="color:var(--text2);font-size:13px">No projects yet</div>';
+  populateCatSelect('newProjCat');
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────────────────
+function renderDash(){
+  const now=new Date();now.setHours(0,0,0,0);
+  const weekAgo=new Date(now);weekAgo.setDate(weekAgo.getDate()-7);
+  const monthAgo=new Date(now);monthAgo.setMonth(monthAgo.getMonth()-1);
+  const logged=completions.filter(c=>c.type==='scheduled');
+  const onTime=logged.filter(c=>c.onTime);
+  const pct=logged.length?Math.round(onTime.length/logged.length*100):0;
+  const thisWeek=completions.filter(c=>c.type!=='skipped'&&new Date(c.completedDate)>=weekAgo);
+  const thisMonth=completions.filter(c=>c.type!=='skipped'&&new Date(c.completedDate)>=monthAgo);
+  const overdue=tasks.filter(t=>t.type==='scheduled'&&new Date(t.due)<now);
+
+  document.getElementById('s-ontime').innerHTML=`<span class="${pct>=80?'good':'bad'}">${pct}%</span>`;
+  document.getElementById('s-week').textContent=thisWeek.length;
+  document.getElementById('s-month').textContent=thisMonth.length;
+  document.getElementById('s-overdue').innerHTML=`<span class="${overdue.length?'bad':'good'}">${overdue.length}</span>`;
+
+  // Category chart
+  const cc=document.getElementById('catChart');
+  const catIds=[...new Set(logged.map(c=>c.catId))];
+  cc.innerHTML=catIds.length?catIds.map(cid=>{
+    const cl=logged.filter(c=>c.catId===cid);
+    const p=Math.round(cl.filter(c=>c.onTime).length/cl.length*100);
+    return`<div class="bar-row"><div class="bar-lbl">${catName(cid)}</div><div class="bar-track"><div class="bar-fill" style="width:${p}%;background:${catColor(cid)}"></div></div><div class="bar-val">${p}%</div></div>`;
+  }).join(''):'<div style="color:var(--text2);font-size:12px">No data yet</div>';
+
+  // Weekly
+  const wc=document.getElementById('weeklyChart');
+  const weeks=[];
+  for(let i=7;i>=0;i--){
+    const s=new Date(now);s.setDate(s.getDate()-i*7);
+    const e=new Date(s);e.setDate(e.getDate()+7);
+    weeks.push({label:`W${8-i}`,count:completions.filter(c=>c.type!=='skipped'&&new Date(c.completedDate)>=s&&new Date(c.completedDate)<e).length});
+  }
+  const mx=Math.max(...weeks.map(w=>w.count),1);
+  wc.innerHTML=weeks.map(w=>`<div class="wbar"><div class="wbar-val">${w.count||''}</div><div class="wbar-inner" style="height:${Math.round(w.count/mx*90)}px"></div><div class="wbar-lbl">${w.label}</div></div>`).join('');
+
+  // Log
+  const log=document.getElementById('logTable');
+  const recent=[...completions].reverse().slice(0,25);
+  log.innerHTML=recent.length?recent.map(c=>{
+    const skip=c.type==='skipped';
+    const v=c.due&&!skip?Math.round((new Date(c.completedDate)-new Date(c.due))/86400000):null;
+    return`<tr>
+      <td>${c.title}</td>
+      <td><span style="color:${catColor(c.catId)};font-weight:600;font-size:11px">${catName(c.catId)}</span></td>
+      <td>${c.projId?projName(c.projId):'—'}</td>
+      <td>${fmtDate(c.due)}</td>
+      <td>${fmtDate(c.completedDate)}</td>
+      <td>${skip?'<span class="badge badge-s">Skipped</span>':c.onTime?'<span class="badge badge-y">Yes</span>':'<span class="badge badge-n">No</span>'}</td>
+      <td style="color:${v===null?'var(--text2)':v<=0?'#3a7d52':'#c84b2f'};font-weight:600">${v===null?'—':`${v>0?'+':''}${v}d`}</td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--text2);padding:20px">No completions yet</td></tr>';
+}
+
+// ── NOTIF ──────────────────────────────────────────────────────────────────
+function showNotif(title,body){
+  const el=document.createElement('div');el.className='notif';
+  el.innerHTML=`<div class="notif-title">${title}</div><div class="notif-body">${body}</div>`;
+  document.getElementById('notifWrap').appendChild(el);
+  setTimeout(()=>el.remove(),5000);
+}
+
+// ── REMINDERS ─────────────────────────────────────────────────────────────
+function checkReminders(){
+  const now=new Date();now.setHours(0,0,0,0);
+  const tom=new Date(now);tom.setDate(tom.getDate()+1);
+  tasks.filter(t=>t.type==='scheduled').forEach(t=>{
+    const d=new Date(t.due);
+    if(d<now)showNotif('⚠️ Overdue',`"${t.title}" was due ${fmtDate(t.due)}`);
+    else if(d<tom)showNotif('📅 Due Today',`"${t.title}" is due today`);
+  });
+}
+
+// Close overlays on backdrop click
+['taskOverlay','manageOverlay'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');});
+});
+document.getElementById('catchupOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('catchupOverlay'))closeCatchup();});
+
+if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();
+
+// ── STARTUP: load from API, fall back to localStorage ─────────────────────
+async function loadData() {
+  // Show a subtle loading state
+  document.getElementById('col-today').innerHTML = '<div class="empty-col">Loading…</div>';
+  document.getElementById('col-week').innerHTML  = '<div class="empty-col">Loading…</div>';
+  document.getElementById('col-later').innerHTML = '<div class="empty-col">Loading…</div>';
+
+  try {
+    const data = await API.readAll();
+
+    // tasks & recurring come from their dedicated sheets
+    if (data.tasks && data.tasks.length)      tasks       = data.tasks.map(t => ({...t, id: isNaN(t.id) ? t.id : Number(t.id)}));
+    if (data.recurring && data.recurring.length) projects = data.recurring; // note: projects stored in recurring tab
+
+    // categories, projects (full objects) & completions stored as settings
+    const s = data.settings || {};
+    if (s.tf3_categories)  categories  = JSON.parse(s.tf3_categories);
+    if (s.tf3_projects)    projects    = JSON.parse(s.tf3_projects);
+    if (s.tf3_completions) completions = JSON.parse(s.tf3_completions);
+
+    // If Sheets is empty on first run, seed from localStorage
+    if (!tasks.length && !categories.length) {
+      tasks       = JSON.parse(localStorage.getItem('tf3_tasks')       || '[]');
+      completions = JSON.parse(localStorage.getItem('tf3_completions') || '[]');
+      categories  = JSON.parse(localStorage.getItem('tf3_categories') || '[]');
+      projects    = JSON.parse(localStorage.getItem('tf3_projects')   || '[]');
+      runSeed(); // run seed only if everything is still empty
+    }
+
+  } catch (err) {
+    console.warn('API load failed, falling back to localStorage:', err);
+    tasks       = JSON.parse(localStorage.getItem('tf3_tasks')       || '[]');
+    completions = JSON.parse(localStorage.getItem('tf3_completions') || '[]');
+    categories  = JSON.parse(localStorage.getItem('tf3_categories') || '[]');
+    projects    = JSON.parse(localStorage.getItem('tf3_projects')   || '[]');
+    runSeed();
+  }
+
+  checkReminders();
+  setInterval(checkReminders, 30*60*1000);
+  renderBoard();
+}
+
+function runSeed() {
+  if (categories.length) return; // already seeded
+  categories=[
+    {id:'cat-log',name:'Logistics',color:'#3a7d52'},
+    {id:'cat-fin',name:'Finance',color:'#c17d2a'},
+    {id:'cat-ops',name:'Operations',color:'#1a56db'},
+    {id:'cat-adm',name:'Admin',color:'#7b4fa6'},
+  ];
+  projects=[
+    {id:'proj-sales',name:'Sales Reports / Dashboards',catId:'cat-ops'},
+    {id:'proj-bsm',name:'BSM WIP',catId:'cat-fin'},
+    {id:'proj-nzavo',name:'NZ Avo WIP',catId:'cat-log'},
+  ];
+  const t=new Date(),fmt=d=>d.toISOString().split('T')[0];
+  const add=n=>{const d=new Date(t);d.setDate(d.getDate()+n);return fmt(d);};
+  tasks=[
+    {id:1,title:'Weekly Harvest Plan',type:'scheduled',catId:'cat-log',projId:null,due:fmt(t),priority:'high',recurring:'daily',created:fmt(t)},
+    {id:2,title:'KPG Reporting',type:'scheduled',catId:'cat-fin',projId:null,due:add(1),priority:'normal',recurring:'weekly',created:fmt(t)},
+    {id:3,title:'Balancing Reports',type:'scheduled',catId:'cat-fin',projId:null,due:add(4),priority:'normal',recurring:'monthly',created:fmt(t)},
+    {id:4,title:'Fortnightly Report',type:'scheduled',catId:'cat-ops',projId:null,due:add(5),priority:'high',recurring:'fortnightly',created:fmt(t)},
+    {id:5,title:'Exchange Rates BSM',type:'scheduled',catId:'cat-fin',projId:null,due:fmt(t),priority:'normal',recurring:'weekly',created:fmt(t)},
+    {id:6,title:'Stock Updates / Orders',type:'scheduled',catId:'cat-log',projId:null,due:add(2),priority:'normal',recurring:'none',created:fmt(t)},
+    {id:7,title:'DGAU Customer Split',type:'project',catId:'cat-ops',projId:'proj-sales',priority:'high',created:fmt(t)},
+    {id:8,title:'New Charts',type:'project',catId:'cat-ops',projId:'proj-sales',priority:'normal',created:fmt(t)},
+    {id:9,title:'Exception Report - PO Sent/SO Sent',type:'project',catId:'cat-fin',projId:'proj-bsm',priority:'normal',created:fmt(t)},
+    {id:10,title:'Button to switch between linked orders',type:'project',catId:'cat-fin',projId:'proj-bsm',priority:'normal',created:fmt(t)},
+    {id:11,title:'Square pallets - Trevelyan\'s',type:'project',catId:'cat-log',projId:'proj-nzavo',priority:'normal',created:fmt(t)},
+  ];
+  save();
+}
+
+loadData();
+
+</script>
+</body>
+</html>
