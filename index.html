@@ -6,6 +6,7 @@
 <title>TaskFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23f4f1ec'/%3E%3Crect x='4' y='6' width='24' height='7' rx='3' fill='white'/%3E%3Crect x='4' y='6' width='3' height='7' rx='1.5' fill='%23c84b2f'/%3E%3Crect x='4' y='15' width='24' height='6' rx='3' fill='white'/%3E%3Crect x='4' y='15' width='3' height='6' rx='1.5' fill='%233a7d52'/%3E%3Crect x='4' y='23' width='24' height='6' rx='3' fill='white'/%3E%3Crect x='4' y='23' width='3' height='6' rx='1.5' fill='%23c17d2a'/%3E%3C/svg%3E">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="TaskFlow">
 <style>
@@ -632,7 +633,7 @@ function handleComplete(id){
 function handleSkip(id){
   const task=tasks.find(t=>t.id===id);
   if(!task||task.recurring==='none')return;
-  completions.push({id:Date.now(),title:task.title,catId:task.catId,projId:task.projId,due:task.due,completedDate:new Date().toISOString().split('T')[0],onTime:null,type:'skipped'});
+  completions.push({id:Date.now(),title:task.title,catId:task.catId,projId:task.projId,due:task.due,completedDate:localDateStr(new Date()),onTime:null,type:'skipped'});
   advanceRecurring(task);
   save();renderBoard();
   showNotif('⏭ Skipped',`"${task.title}" skipped — not counted in stats. Next due ${fmtDate(task.due)}.`);
@@ -982,7 +983,7 @@ function runSeed() {
     {id:'proj-bsm',name:'BSM WIP',catId:'cat-fin'},
     {id:'proj-nzavo',name:'NZ Avo WIP',catId:'cat-log'},
   ];
-  const t=new Date(),fmt=d=>d.toISOString().split('T')[0];
+  const t=new Date(),fmt=d=>localDateStr(d);
   const add=n=>{const d=new Date(t);d.setDate(d.getDate()+n);return fmt(d);};
   tasks=[
     {id:1,title:'Weekly Harvest Plan',type:'scheduled',catId:'cat-log',projId:null,due:fmt(t),priority:'high',recurring:'daily',created:fmt(t)},
