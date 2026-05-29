@@ -50,7 +50,24 @@ nav button.active{background:var(--accent);color:#fff;}
 /* 4-COLUMN GRID — fills viewport height minus header and banner */
 .four-col{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
 @media(max-width:960px){.four-col{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:560px){.four-col{grid-template-columns:1fr;}}
+@media(max-width:560px){
+  .four-col{grid-template-columns:1fr;}
+  .view{padding:10px;}
+  header{padding:0 12px;}
+  .logo{font-size:17px;}
+  nav button{padding:6px 9px;font-size:12px;}
+  .btn{padding:7px 10px;font-size:12px;}
+  .hdr-right .btn-sm{font-size:11px;padding:5px 8px;}
+  .tcol{height:auto;min-height:200px;max-height:65vh;}
+  .task-card{padding:9px 10px;}
+  .task-title{font-size:13px;}
+  .modal{padding:18px;}
+  .frow{grid-template-columns:1fr;}
+  .dash-grid{grid-template-columns:1fr 1fr;}
+  .stat-value{font-size:26px;}
+  .log-table th:nth-child(3),.log-table td:nth-child(3),
+  .log-table th:nth-child(7),.log-table td:nth-child(7){display:none;}
+}
 
 .tcol{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 110px);min-height:400px;}
 .tcol-header{padding:11px 14px 9px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-shrink:0;}
@@ -75,6 +92,7 @@ nav button.active{background:var(--accent);color:#fff;}
 .icon-btn.ok:hover{border-color:#3a7d52;background:rgba(58,125,82,.12);}
 .icon-btn.sk:hover{border-color:#c17d2a;background:rgba(193,125,42,.12);}
 .task-title{font-size:13px;font-weight:500;line-height:1.35;flex:1;}
+.task-notes{font-size:11px;color:var(--text2);line-height:1.4;margin-bottom:5px;margin-top:-2px;white-space:pre-wrap;}
 .task-meta{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
 .tag{font-size:10px;padding:2px 6px;border-radius:6px;font-weight:600;}
 .tag-cat{border:1px solid var(--border);background:var(--surface);}
@@ -285,6 +303,7 @@ nav button.active{background:var(--accent);color:#fff;}
       <div class="fg" id="fProjGroup"><label>Project <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label><select id="fProj"></select></div>
     </div>
     <div class="fg"><label>Priority</label><select id="fPriority"><option value="normal">Normal</option><option value="high">High</option></select></div>
+    <div class="fg"><label>Notes <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label><textarea id="fNotes" rows="3" placeholder="Add any notes or context…" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;resize:vertical;transition:border-color .15s;" onfocus="this.style.borderColor='#c84b2f'" onblur="this.style.borderColor=''"></textarea></div>
     <div id="scheduledFields">
       <div class="frow">
         <div class="fg"><label>Due Date</label><input type="date" id="fDue"></div>
@@ -466,9 +485,11 @@ function showView(v){
 // ── BOARD ─────────────────────────────────────────────────────────────────
 function renderBoard(){
   const now=new Date();now.setHours(0,0,0,0);
+  const todayStr=now.toISOString().split('T')[0];
   const endWeek=new Date(now);endWeek.setDate(endWeek.getDate()+7);
+  const endWeekStr=endWeek.toISOString().split('T')[0];
   const sched=tasks.filter(t=>t.type==='scheduled');
-  const overdue=sched.filter(t=>new Date(t.due)<now);
+  const overdue=sched.filter(t=>t.due&&t.due<todayStr);
 
   const banner=document.getElementById('ovBanner');
   if(overdue.length){
@@ -476,9 +497,9 @@ function renderBoard(){
     banner.innerHTML=`⚠️ <strong>${overdue.length} overdue:</strong> `+overdue.map(t=>`<span style="cursor:pointer;text-decoration:underline" onclick="openTaskModal(${t.id})">${t.title}</span>`).join(', ');
   } else banner.style.display='none';
 
-  renderTimeCol('today', sched.filter(t=>new Date(t.due)<=now), now);
-  renderTimeCol('week',  sched.filter(t=>{const d=new Date(t.due);return d>now&&d<endWeek;}), now);
-  renderTimeCol('later', sched.filter(t=>new Date(t.due)>=endWeek), now);
+  renderTimeCol('today', sched.filter(t=>t.due===todayStr), now);
+  renderTimeCol('week',  sched.filter(t=>t.due>todayStr&&t.due<endWeekStr), now);
+  renderTimeCol('later', sched.filter(t=>t.due>=endWeekStr), now);
   renderProjectsCol();
 }
 
@@ -502,6 +523,7 @@ function renderTimeCol(colId, list, now){
         </div>
         <div class="task-title">${t.title}</div>
       </div>
+      ${t.notes?`<div class="task-notes">${t.notes}</div>`:''}
       <div class="task-meta">
         <span class="tag tag-cat" style="color:${color};border-color:${color}40">${catName(t.catId)}</span>
         ${pName?`<span class="tag tag-proj">${pName}</span>`:''}
@@ -678,6 +700,7 @@ function openTaskModal(id, forceType, forceProjId){
   document.getElementById('fRecurring').value='none';
   document.getElementById('fPriority').value='normal';
   document.getElementById('fTitle').value='';
+  document.getElementById('fNotes').value='';
   populateCatSelect('fCat', categories[0]?.id);
   populateProjSelect();
   if(id){
@@ -690,6 +713,7 @@ function openTaskModal(id, forceType, forceProjId){
     document.getElementById('fPriority').value=t.priority;
     if(t.due)document.getElementById('fDue').value=t.due;
     document.getElementById('fRecurring').value=t.recurring||'none';
+    document.getElementById('fNotes').value=t.notes||'';
   } else {
     setType(forceType||'scheduled');
     if(forceProjId){
@@ -705,7 +729,7 @@ function closeTaskModal(){document.getElementById('taskOverlay').classList.remov
 function saveTask(){
   const title=document.getElementById('fTitle').value.trim();
   if(!title){document.getElementById('fTitle').focus();return;}
-  const data={title,type:taskType,catId:document.getElementById('fCat').value,projId:document.getElementById('fProj').value||null,priority:document.getElementById('fPriority').value,due:taskType==='scheduled'?document.getElementById('fDue').value:null,recurring:taskType==='scheduled'?document.getElementById('fRecurring').value:'none'};
+  const data={title,type:taskType,catId:document.getElementById('fCat').value,projId:document.getElementById('fProj').value||null,priority:document.getElementById('fPriority').value,due:taskType==='scheduled'?document.getElementById('fDue').value:null,recurring:taskType==='scheduled'?document.getElementById('fRecurring').value:'none',notes:document.getElementById('fNotes').value.trim()};
   if(editingId)Object.assign(tasks.find(t=>t.id===editingId),data);
   else tasks.push({id:Date.now(),...data,created:new Date().toISOString().split('T')[0]});
   save();closeTaskModal();renderBoard();
