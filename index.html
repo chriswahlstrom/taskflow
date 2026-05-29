@@ -504,7 +504,7 @@ function renderBoard(){
     banner.innerHTML=`⚠️ <strong>${overdue.length} overdue:</strong> `+overdue.map(t=>`<span style="cursor:pointer;text-decoration:underline" onclick="openTaskModal(${t.id})">${t.title}</span>`).join(', ');
   } else banner.style.display='none';
 
-  renderTimeCol('today', sched.filter(t=>t.due===todayStr), now);
+  renderTimeCol('today', sched.filter(t=>t.due<=todayStr), now);
   renderTimeCol('week',  sched.filter(t=>t.due>todayStr&&t.due<endWeekStr), now);
   renderTimeCol('later', sched.filter(t=>t.due>=endWeekStr), now);
   renderProjectsCol();
@@ -533,7 +533,7 @@ function renderTimeCol(colId, list, now){
         <span class="tag tag-cat" style="color:${color};border-color:${color}40">${catName(t.catId)}</span>
         ${pName?`<span class="tag tag-proj">${pName}</span>`:''}
         ${t.priority==='high'?'<span class="tag tag-high">High</span>':''}
-        ${isRec?`<span class="tag tag-rec">↻ ${t.recurring}</span>`:''}
+        ${isRec?`<span class="tag tag-rec">↻ ${t.recurring.charAt(0).toUpperCase()+t.recurring.slice(1)}</span>`:''}
         ${missed>0?`<span class="tag tag-missed">+${missed}d</span>`:''}
         <span class="due-chip${isOv?' ov':''}">${fmtDate(t.due)}</span>
       </div>
