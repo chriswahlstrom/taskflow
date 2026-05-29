@@ -611,15 +611,15 @@ function handleComplete(id){
   const task=tasks.find(t=>t.id===id);
   if(!task)return;
   const now=new Date();now.setHours(0,0,0,0);
-  const today=now.toISOString().split('T')[0];
+  const today=localDateStr(now);
   if(task.type==='project'){
     completions.push({id:Date.now(),title:task.title,catId:task.catId,projId:task.projId,due:null,completedDate:today,onTime:true,type:'project'});
     tasks=tasks.filter(t=>t.id!==id);
     save();renderBoard();showNotif('✓ Done',`"${task.title}" completed.`);return;
   }
-  const dueDate=new Date(task.due);dueDate.setHours(0,0,0,0);
+  const dueDate=new Date(task.due+'T00:00:00');dueDate.setHours(0,0,0,0);
   const missed=Math.floor((now-dueDate)/86400000);
-  if(task.recurring!=='none'&&missed>1){
+  if(task.recurring!=='none'&&missed>=1){
     catchupTaskId=id;showCatchup(task,missed,today,dueDate);
   } else {
     logCompletion(task,task.due,today);
@@ -638,8 +638,22 @@ function handleSkip(id){
   showNotif('⏭ Skipped',`"${task.title}" skipped — not counted in stats. Next due ${fmtDate(task.due)}.`);
 }
 
-function logCompletion(task,dueStr,compStr){
-  completions.push({id:Date.now()+Math.random(),title:task.title,catId:task.catId,projId:task.projId,due:dueStr,completedDate:compStr,onTime:compStr<=dueStr,type:'scheduled'});
+// Returns the effective deadline for on-time calculation:
+// Monthly tasks: shift weekend due dates to Monday, then add 1 day grace.
+function effectiveDeadline(dueStr, recurring) {
+  if (recurring !== 'monthly') return dueStr;
+  const d = new Date(dueStr + 'T00:00:00');
+  const dow = d.getDay(); // 0=Sun, 6=Sat
+  if (dow === 6) d.setDate(d.getDate() + 2); // Sat → Mon
+  else if (dow === 0) d.setDate(d.getDate() + 1); // Sun → Mon
+  d.setDate(d.getDate() + 1); // +1 day grace for monthly
+  return localDateStr(d);
+}
+
+function logCompletion(task, dueStr, compStr, forceOnTime=false){
+  const deadline = effectiveDeadline(dueStr, task.recurring||'none');
+  const onTime = forceOnTime || compStr <= deadline;
+  completions.push({id:Date.now()+Math.random(),title:task.title,catId:task.catId,projId:task.projId,due:dueStr,completedDate:compStr,onTime,type:'scheduled'});
 }
 
 function advanceRecurring(task){
@@ -650,7 +664,7 @@ function advanceRecurring(task){
   else if(task.recurring==='weekly')base.setDate(base.getDate()+7);
   else if(task.recurring==='fortnightly')base.setDate(base.getDate()+14);
   else if(task.recurring==='monthly')base.setMonth(base.getMonth()+1);
-  task.due=base.toISOString().split('T')[0];
+  task.due=localDateStr(base);
 }
 
 // ── CATCHUP ────────────────────────────────────────────────────────────────
@@ -658,11 +672,18 @@ function showCatchup(task,missed,today,dueDate){
   catchupChoice='today';
   document.getElementById('catchupDesc').textContent=`"${task.title}" is ${missed} day(s) overdue. How would you like to handle it?`;
   const df=fmtDate(task.due);
+  const isMonthly=task.recurring==='monthly';
+  const deadline=effectiveDeadline(task.due,task.recurring);
+  const withinGrace=today<=deadline;
+  // If monthly and within grace period, pre-select on-time
+  if(isMonthly&&withinGrace)catchupChoice='due';
   document.getElementById('catchupOptions').innerHTML=`
-    <label class="cu-opt"><input type="radio" name="cu" value="today" checked onchange="catchupChoice='today'">
+    <label class="cu-opt"><input type="radio" name="cu" value="today" ${!isMonthly||!withinGrace?'checked':''} onchange="catchupChoice='today'">
       <div><div class="cu-opt-title">Completed today (late)</div><div class="cu-opt-sub">Logged as late. Due was ${df}.</div></div></label>
-    <label class="cu-opt"><input type="radio" name="cu" value="due" onchange="catchupChoice='due'">
+    <label class="cu-opt"><input type="radio" name="cu" value="due" ${isMonthly&&withinGrace?'checked':''} onchange="catchupChoice='due'">
       <div><div class="cu-opt-title">Completed on due date (on time)</div><div class="cu-opt-sub">Logged as on-time on ${df} — use if you forgot to tick off.</div></div></label>
+    ${isMonthly?`<label class="cu-opt"><input type="radio" name="cu" value="leave" onchange="catchupChoice='leave'">
+      <div><div class="cu-opt-title">On leave — completed on return</div><div class="cu-opt-sub">Logged as on-time. Won't affect your stats.</div></div></label>`:''}
     <label class="cu-opt"><input type="radio" name="cu" value="skip" onchange="catchupChoice='skip'">
       <div><div class="cu-opt-title">Skip — wasn't needed</div><div class="cu-opt-sub">Not counted in stats. Advances to next occurrence.</div></div></label>`;
   document.getElementById('catchupOverlay').classList.add('open');
@@ -674,6 +695,7 @@ function confirmCatchup(){
   const today=localDateStr(new Date());
   if(catchupChoice==='today')logCompletion(task,task.due,today);
   else if(catchupChoice==='due')logCompletion(task,task.due,task.due);
+  else if(catchupChoice==='leave')logCompletion(task,task.due,today,true); // forceOnTime
   else completions.push({id:Date.now(),title:task.title,catId:task.catId,projId:task.projId,due:task.due,completedDate:today,onTime:null,type:'skipped'});
   advanceRecurring(task);save();closeCatchup();renderBoard();
   showNotif('✓ Updated',`"${task.title}" handled. Next due ${fmtDate(task.due)}.`);
