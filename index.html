@@ -86,12 +86,11 @@ nav button.active{background:var(--accent);color:#fff;}
 .task-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 11px;margin-bottom:7px;cursor:pointer;transition:all .15s;}
 .task-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px);}
 .task-card.overdue{border-left:3px solid #c84b2f;}
-.task-card-top{display:flex;align-items:flex-start;gap:7px;margin-bottom:6px;}
-.task-btns{display:flex;flex-direction:column;gap:3px;flex-shrink:0;}
+.task-card-top{display:flex;align-items:flex-start;gap:7px;margin-bottom:4px;}
+.task-title{font-size:13px;font-weight:500;line-height:1.35;flex:1;}
 .icon-btn{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--border);background:none;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;}
 .icon-btn.ok:hover{border-color:#3a7d52;background:rgba(58,125,82,.12);}
 .icon-btn.sk:hover{border-color:#c17d2a;background:rgba(193,125,42,.12);}
-.task-title{font-size:13px;font-weight:500;line-height:1.35;flex:1;}
 .task-notes{font-size:11px;color:var(--text2);line-height:1.4;margin-bottom:5px;margin-top:-2px;white-space:pre-wrap;}
 .task-meta{display:flex;gap:5px;flex-wrap:wrap;align-items:center;}
 .tag{font-size:10px;padding:2px 6px;border-radius:6px;font-weight:600;}
@@ -483,11 +482,19 @@ function showView(v){
 }
 
 // ── BOARD ─────────────────────────────────────────────────────────────────
+// Local date string helper — avoids UTC offset bug in AU timezone
+function localDateStr(d){
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const day=String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
 function renderBoard(){
   const now=new Date();now.setHours(0,0,0,0);
-  const todayStr=now.toISOString().split('T')[0];
+  const todayStr=localDateStr(now);
   const endWeek=new Date(now);endWeek.setDate(endWeek.getDate()+7);
-  const endWeekStr=endWeek.toISOString().split('T')[0];
+  const endWeekStr=localDateStr(endWeek);
   const sched=tasks.filter(t=>t.type==='scheduled');
   const overdue=sched.filter(t=>t.due&&t.due<todayStr);
 
@@ -517,14 +524,12 @@ function renderTimeCol(colId, list, now){
     const pName=t.projId?projName(t.projId):null;
     return `<div class="task-card${isOv?' overdue':''}" onclick="openTaskModal(${t.id})">
       <div class="task-card-top">
-        <div class="task-btns">
-          <button class="icon-btn ok" onclick="event.stopPropagation();handleComplete(${t.id})" title="Complete">✓</button>
-          ${isRec?`<button class="icon-btn sk" onclick="event.stopPropagation();handleSkip(${t.id})" title="Skip — not needed">⏭</button>`:''}
-        </div>
         <div class="task-title">${t.title}</div>
       </div>
       ${t.notes?`<div class="task-notes">${t.notes}</div>`:''}
       <div class="task-meta">
+        <button class="icon-btn ok" onclick="event.stopPropagation();handleComplete(${t.id})" title="Complete">✓</button>
+        ${isRec?`<button class="icon-btn sk" onclick="event.stopPropagation();handleSkip(${t.id})" title="Skip — not needed">⏭</button>`:''}
         <span class="tag tag-cat" style="color:${color};border-color:${color}40">${catName(t.catId)}</span>
         ${pName?`<span class="tag tag-proj">${pName}</span>`:''}
         ${t.priority==='high'?'<span class="tag tag-high">High</span>':''}
@@ -663,7 +668,7 @@ function showCatchup(task,missed,today,dueDate){
 function confirmCatchup(){
   const task=tasks.find(t=>t.id===catchupTaskId);
   if(!task)return closeCatchup();
-  const today=new Date().toISOString().split('T')[0];
+  const today=localDateStr(new Date());
   if(catchupChoice==='today')logCompletion(task,task.due,today);
   else if(catchupChoice==='due')logCompletion(task,task.due,task.due);
   else completions.push({id:Date.now(),title:task.title,catId:task.catId,projId:task.projId,due:task.due,completedDate:today,onTime:null,type:'skipped'});
@@ -696,7 +701,7 @@ function openTaskModal(id, forceType, forceProjId){
   editingId=id;
   document.getElementById('taskModalTitle').textContent=id?'Edit Task':'New Task';
   document.getElementById('btnDelete').classList.toggle('hidden',!id);
-  document.getElementById('fDue').value=new Date().toISOString().split('T')[0];
+  document.getElementById('fDue').value=localDateStr(new Date());
   document.getElementById('fRecurring').value='none';
   document.getElementById('fPriority').value='normal';
   document.getElementById('fTitle').value='';
@@ -731,7 +736,7 @@ function saveTask(){
   if(!title){document.getElementById('fTitle').focus();return;}
   const data={title,type:taskType,catId:document.getElementById('fCat').value,projId:document.getElementById('fProj').value||null,priority:document.getElementById('fPriority').value,due:taskType==='scheduled'?document.getElementById('fDue').value:null,recurring:taskType==='scheduled'?document.getElementById('fRecurring').value:'none',notes:document.getElementById('fNotes').value.trim()};
   if(editingId)Object.assign(tasks.find(t=>t.id===editingId),data);
-  else tasks.push({id:Date.now(),...data,created:new Date().toISOString().split('T')[0]});
+  else tasks.push({id:Date.now(),...data,created:localDateStr(new Date())});
   save();closeTaskModal();renderBoard();
 }
 
