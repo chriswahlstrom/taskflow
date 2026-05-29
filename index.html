@@ -363,7 +363,7 @@ nav button.active{background:var(--accent);color:#fff;}
 <script>
 // ── API ADAPTER ────────────────────────────────────────────────────────────
 const API = (function() {
-  const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxjc61hgxn9e9rBpn0m8TZmAlFq-0_ZL9xHfTMR-8e5Si9m6uAoO8GeQAYfQcycN67K8A/exec';
+  const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxB6K-8Gcf_JpprtErMlXnMSYPK26QTFW0Kh8_ME919QOe232ku0a9X9lfc3ydRVGrpjw/exec';
 
   async function post(payload) {
     const res = await fetch(ENDPOINT, {
@@ -381,12 +381,8 @@ const API = (function() {
   }
 
   return {
-    readAll:        ()       => get({ action: 'readAll' }),
-    saveTasks:      (data)   => post({ action: 'writeTasks',    data }),
-    saveRecurring:  (data)   => post({ action: 'writeRecurring', data }),
-    addCompletion:  (data)   => post({ action: 'addCompletion',  data }),
-    readCompletions:(days=30)=> get({ action: 'readCompletions', days }),
-    writeSetting:   (key, value) => post({ action: 'writeSetting', key, value })
+    save: (data) => post({ action: 'save', data }),
+    load: ()     => get({ action: 'load' })
   };
 })();
 
@@ -445,16 +441,12 @@ function save() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     try {
-      await Promise.all([
-        API.saveTasks(tasks),
-        API.saveRecurring(projects) // reusing writeRecurring slot for projects — see note below
-      ]);
-      // Also persist categories & projects as a setting (they're small)
-      await Promise.all([
-        API.writeSetting('tf3_categories', JSON.stringify(categories)),
-        API.writeSetting('tf3_projects',   JSON.stringify(projects)),
-        API.writeSetting('tf3_completions',JSON.stringify(completions))
-      ]);
+      await API.save({
+        tf3_tasks:       JSON.stringify(tasks),
+        tf3_completions: JSON.stringify(completions),
+        tf3_categories:  JSON.stringify(categories),
+        tf3_projects:    JSON.stringify(projects)
+      });
       showSyncIndicator('synced');
     } catch (err) {
       showSyncIndicator('error');
@@ -892,35 +884,21 @@ async function loadData() {
   document.getElementById('col-later').innerHTML = '<div class="empty-col">Loading…</div>';
 
   try {
-    const data = await API.readAll();
+    const data = await API.load();
 
-    // Remap Sheets field names back to app field names (Sheets uses dueDate, app uses due)
-    if (data.tasks && data.tasks.length) {
-      tasks = data.tasks.map(t => ({
-        ...t,
-        id:        isNaN(t.id) ? t.id : Number(t.id),
-        due:       t.dueDate || t.due || '',
-        catId:     t.catId   || '',
-        projId:    t.projId  && t.projId !== '' ? t.projId : null,
-        recurring: t.recurring || 'none',
-        priority:  t.priority  || 'normal',
-        type:      t.type      || 'scheduled',
-      }));
-    }
+    // Data comes back as plain JSON strings stored in Sheets settings tab
+    if (data.tf3_tasks)       tasks       = JSON.parse(data.tf3_tasks);
+    if (data.tf3_completions) completions = JSON.parse(data.tf3_completions);
+    if (data.tf3_categories)  categories  = JSON.parse(data.tf3_categories);
+    if (data.tf3_projects)    projects    = JSON.parse(data.tf3_projects);
 
-    // categories, projects (full objects) & completions stored as settings
-    const s = data.settings || {};
-    if (s.tf3_categories)  categories  = JSON.parse(s.tf3_categories);
-    if (s.tf3_projects)    projects    = JSON.parse(s.tf3_projects);
-    if (s.tf3_completions) completions = JSON.parse(s.tf3_completions);
-
-    // If Sheets is empty on first run, seed from localStorage
+    // If Sheets is empty, fall back to localStorage then seed
     if (!tasks.length && !categories.length) {
       tasks       = JSON.parse(localStorage.getItem('tf3_tasks')       || '[]');
       completions = JSON.parse(localStorage.getItem('tf3_completions') || '[]');
       categories  = JSON.parse(localStorage.getItem('tf3_categories') || '[]');
       projects    = JSON.parse(localStorage.getItem('tf3_projects')   || '[]');
-      runSeed(); // run seed only if everything is still empty
+      runSeed();
     }
 
   } catch (err) {
