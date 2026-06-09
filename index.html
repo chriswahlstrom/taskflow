@@ -70,7 +70,10 @@ nav button.active{background:var(--accent);color:#fff;}
   .task-title{font-size:13px;}
   .modal{padding:16px;width:calc(100vw - 32px);max-width:calc(100vw - 32px);box-sizing:border-box;}
   .catchup-modal{padding:16px;width:calc(100vw - 32px);max-width:calc(100vw - 32px);box-sizing:border-box;}
-  .frow{grid-template-columns:1fr;}
+  .frow{grid-template-columns:1fr !important;}
+  .fg{width:100%;box-sizing:border-box;}
+  .modal input,.modal select,.modal textarea{width:100%;max-width:100%;box-sizing:border-box;}
+  #scheduledFields .frow{grid-template-columns:1fr !important;gap:0;}
   .modal h3{font-size:17px;}
   .dash-grid{grid-template-columns:1fr 1fr;}
   .stat-value{font-size:26px;}
@@ -252,10 +255,7 @@ nav button.active{background:var(--accent);color:#fff;}
 <!-- BOARD -->
 <div id="board" class="view active">
   <div id="ovBanner" class="ov-banner" style="display:none"></div>
-  <div id="setupBanner" style="display:none;background:#1a56db;color:#fff;padding:10px 20px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
-    <span>⚙️ <strong>One-time setup:</strong> Tap the button to protect this device from accidental data resets.</span>
-    <button onclick="runSetupFlag()" style="background:#fff;color:#1a56db;border:none;border-radius:6px;padding:6px 14px;font-family:'DM Sans',sans-serif;font-weight:600;font-size:12px;cursor:pointer;white-space:nowrap;">Protect this device</button>
-  </div>
+
   <div class="four-col">
     <div class="tcol tcol-today">
       <div class="tcol-header"><span class="tcol-label">Today</span><span class="tcol-count" id="cnt-today">0</span></div>
@@ -988,32 +988,15 @@ document.getElementById('catchupOverlay').addEventListener('click',e=>{if(e.targ
 if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();
 
 // ── STARTUP: load from API, fall back to localStorage ─────────────────────
-// Cookie helpers — more reliable than localStorage on iOS Safari home screen apps
-function setSeededCookie() {
-  const expires = new Date();
-  expires.setFullYear(expires.getFullYear() + 10);
-  document.cookie = 'tf3_seeded=1;expires=' + expires.toUTCString() + ';path=/taskflow/;SameSite=Lax';
+// Seed protection helpers
+function setSeededFlag() {
   localStorage.setItem('tf3_seeded', '1');
   sessionStorage.setItem('tf3_seeded', '1');
 }
 
 function isSeeded() {
-  return document.cookie.indexOf('tf3_seeded=1') !== -1 
-    || localStorage.getItem('tf3_seeded') === '1'
+  return localStorage.getItem('tf3_seeded') === '1'
     || sessionStorage.getItem('tf3_seeded') === '1';
-}
-
-function runSetupFlag() {
-  setSeededCookie();
-  document.getElementById('setupBanner').style.display = 'none';
-  showNotif('✓ Protected', 'This device is now protected from accidental data resets.');
-}
-
-// Show setup banner on devices that haven't set the flag yet
-function checkSetupFlag() {
-  if (!isSeeded()) {
-    document.getElementById('setupBanner').style.display = 'flex';
-  }
 }
 
 async function loadData() {
@@ -1054,7 +1037,6 @@ async function loadData() {
     // Do NOT call runSeed() or save() here — we're in read-only offline mode
   }
 
-  checkSetupFlag();
   checkReminders();
   setInterval(checkReminders, 30*60*1000);
   renderBoard();
@@ -1063,7 +1045,7 @@ async function loadData() {
 function runSeed() {
   if (categories.length) return; // already seeded
   if (isSeeded()) return; // seed flag set — never run again
-  setSeededCookie(); // set flag immediately before anything else
+  setSeededFlag(); // set flag immediately before anything else
   categories=[
     {id:'cat-log',name:'Logistics',color:'#3a7d52'},
     {id:'cat-fin',name:'Finance',color:'#c17d2a'},
