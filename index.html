@@ -988,15 +988,27 @@ document.getElementById('catchupOverlay').addEventListener('click',e=>{if(e.targ
 if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();
 
 // ── STARTUP: load from API, fall back to localStorage ─────────────────────
+// Cookie helpers — more reliable than localStorage on iOS Safari home screen apps
+function setSeededCookie() {
+  const expires = new Date();
+  expires.setFullYear(expires.getFullYear() + 10);
+  document.cookie = 'tf3_seeded=1;expires=' + expires.toUTCString() + ';path=/;SameSite=Lax';
+  localStorage.setItem('tf3_seeded', '1'); // belt and braces
+}
+
+function isSeeded() {
+  return document.cookie.indexOf('tf3_seeded=1') !== -1 || localStorage.getItem('tf3_seeded') === '1';
+}
+
 function runSetupFlag() {
-  localStorage.setItem('tf3_seeded', '1');
+  setSeededCookie();
   document.getElementById('setupBanner').style.display = 'none';
   showNotif('✓ Protected', 'This device is now protected from accidental data resets.');
 }
 
 // Show setup banner on devices that haven't set the flag yet
 function checkSetupFlag() {
-  if (!localStorage.getItem('tf3_seeded')) {
+  if (!isSeeded()) {
     document.getElementById('setupBanner').style.display = 'flex';
   }
 }
@@ -1023,7 +1035,7 @@ async function loadData() {
       categories  = JSON.parse(localStorage.getItem('tf3_categories') || '[]');
       projects    = JSON.parse(localStorage.getItem('tf3_projects')   || '[]');
       // Only seed if localStorage is also empty AND never been seeded before
-      if (!tasks.length && !localStorage.getItem('tf3_seeded')) {
+      if (!tasks.length && !isSeeded()) {
         runSeed();
       }
     }
@@ -1047,8 +1059,8 @@ async function loadData() {
 
 function runSeed() {
   if (categories.length) return; // already seeded
-  if (localStorage.getItem('tf3_seeded')) return; // seed flag set — never run again
-  localStorage.setItem('tf3_seeded', '1'); // set flag immediately before anything else
+  if (isSeeded()) return; // seed flag set — never run again
+  setSeededCookie(); // set flag immediately before anything else
   categories=[
     {id:'cat-log',name:'Logistics',color:'#3a7d52'},
     {id:'cat-fin',name:'Finance',color:'#c17d2a'},
