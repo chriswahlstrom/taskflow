@@ -992,12 +992,15 @@ if('Notification'in window&&Notification.permission==='default')Notification.req
 function setSeededCookie() {
   const expires = new Date();
   expires.setFullYear(expires.getFullYear() + 10);
-  document.cookie = 'tf3_seeded=1;expires=' + expires.toUTCString() + ';path=/;SameSite=Lax';
-  localStorage.setItem('tf3_seeded', '1'); // belt and braces
+  document.cookie = 'tf3_seeded=1;expires=' + expires.toUTCString() + ';path=/taskflow/;SameSite=Lax';
+  localStorage.setItem('tf3_seeded', '1');
+  sessionStorage.setItem('tf3_seeded', '1');
 }
 
 function isSeeded() {
-  return document.cookie.indexOf('tf3_seeded=1') !== -1 || localStorage.getItem('tf3_seeded') === '1';
+  return document.cookie.indexOf('tf3_seeded=1') !== -1 
+    || localStorage.getItem('tf3_seeded') === '1'
+    || sessionStorage.getItem('tf3_seeded') === '1';
 }
 
 function runSetupFlag() {
