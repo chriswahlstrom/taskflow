@@ -994,22 +994,27 @@ async function loadData() {
     if (data.tf3_categories)  categories  = JSON.parse(data.tf3_categories);
     if (data.tf3_projects)    projects    = JSON.parse(data.tf3_projects);
 
-    // If Sheets is empty, fall back to localStorage then seed
+    // If Sheets is empty AND this is a genuine first run, seed default data
     if (!tasks.length && !categories.length) {
       tasks       = JSON.parse(localStorage.getItem('tf3_tasks')       || '[]');
       completions = JSON.parse(localStorage.getItem('tf3_completions') || '[]');
       categories  = JSON.parse(localStorage.getItem('tf3_categories') || '[]');
       projects    = JSON.parse(localStorage.getItem('tf3_projects')   || '[]');
-      runSeed();
+      // Only seed if localStorage is also empty AND never been seeded before
+      if (!tasks.length && !localStorage.getItem('tf3_seeded')) {
+        runSeed();
+      }
     }
 
   } catch (err) {
-    console.warn('API load failed, falling back to localStorage:', err);
+    // API failed — load from localStorage silently, but NEVER write back to Sheets
+    // This prevents a bad fallback from overwriting real data
+    console.warn('API load failed, using localStorage as read-only fallback:', err);
     tasks       = JSON.parse(localStorage.getItem('tf3_tasks')       || '[]');
     completions = JSON.parse(localStorage.getItem('tf3_completions') || '[]');
     categories  = JSON.parse(localStorage.getItem('tf3_categories') || '[]');
     projects    = JSON.parse(localStorage.getItem('tf3_projects')   || '[]');
-    runSeed();
+    // Do NOT call runSeed() or save() here — we're in read-only offline mode
   }
 
   checkReminders();
@@ -1019,6 +1024,8 @@ async function loadData() {
 
 function runSeed() {
   if (categories.length) return; // already seeded
+  if (localStorage.getItem('tf3_seeded')) return; // seed flag set — never run again
+  localStorage.setItem('tf3_seeded', '1'); // set flag immediately before anything else
   categories=[
     {id:'cat-log',name:'Logistics',color:'#3a7d52'},
     {id:'cat-fin',name:'Finance',color:'#c17d2a'},
