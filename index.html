@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TaskFlow</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
 <link rel="apple-touch-icon" href="icon.png">
@@ -65,8 +65,10 @@ nav button.active{background:var(--accent);color:#fff;}
   .tcol{height:auto;min-height:200px;max-height:65vh;}
   .task-card{padding:9px 10px;}
   .task-title{font-size:13px;}
-  .modal{padding:18px;}
+  .modal{padding:16px;width:calc(100vw - 32px);max-width:calc(100vw - 32px);box-sizing:border-box;}
+  .catchup-modal{padding:16px;width:calc(100vw - 32px);max-width:calc(100vw - 32px);box-sizing:border-box;}
   .frow{grid-template-columns:1fr;}
+  .modal h3{font-size:17px;}
   .dash-grid{grid-template-columns:1fr 1fr;}
   .stat-value{font-size:26px;}
   .log-table th:nth-child(3),.log-table td:nth-child(3),
@@ -167,7 +169,7 @@ nav button.active{background:var(--accent);color:#fff;}
 @media(prefers-color-scheme:dark){.badge-y{background:#112218;}.badge-n{background:#3d1810;}}
 
 /* MODALS shared */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:200;align-items:center;justify-content:center;padding:16px;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.52);z-index:200;align-items:center;justify-content:center;padding:16px;overflow:hidden;box-sizing:border-box;}
 .overlay.open{display:flex;}
 .modal{background:var(--surface);border-radius:var(--radius);padding:26px;width:100%;max-width:460px;box-shadow:var(--shadow-lg);max-height:90vh;overflow-y:auto;}
 .modal-sm{max-width:380px;}
