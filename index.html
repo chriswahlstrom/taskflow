@@ -73,7 +73,7 @@ nav button.active{background:var(--accent);color:#fff;}
   .frow{grid-template-columns:1fr !important;}
   .fg{width:100%;box-sizing:border-box;}
   .modal input,.modal select,.modal textarea{width:100%;max-width:100%;box-sizing:border-box;}
-  input[type='date']{width:100% !important;max-width:100% !important;box-sizing:border-box !important;display:block !important;min-width:0 !important;-webkit-appearance:none !important;appearance:none !important;}
+  input[type='date']{width:100%;max-width:100%;box-sizing:border-box;display:block;}
   #scheduledFields .frow{grid-template-columns:1fr !important;gap:0;}
   .modal h3{font-size:17px;}
   .dash-grid{grid-template-columns:1fr 1fr;}
@@ -678,8 +678,12 @@ function logCompletion(task, dueStr, compStr, forceOnTime=false){
 
 function advanceRecurring(task){
   if(task.recurring==='none'){tasks=tasks.filter(t=>t.id!==task.id);return;}
-  const now=new Date();now.setHours(0,0,0,0);
-  const base=new Date(Math.max(new Date(task.due).getTime(),now.getTime()));
+  // Daily: advance from today so you always get tomorrow, never stack up.
+  // Weekly/Fortnightly/Monthly: advance from original due date to preserve the cycle.
+  const today=new Date();today.setHours(0,0,0,0);
+  const base=task.recurring==='daily'
+    ? new Date(today)
+    : new Date(task.due+'T00:00:00');
   if(task.recurring==='daily')base.setDate(base.getDate()+1);
   else if(task.recurring==='weekly')base.setDate(base.getDate()+7);
   else if(task.recurring==='fortnightly')base.setDate(base.getDate()+14);
