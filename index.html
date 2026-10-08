@@ -412,13 +412,21 @@ const API = (function() {
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload)
     });
-    return res.json();
+    return checked(res);
   }
 
   async function get(params) {
     const qs = new URLSearchParams(params).toString();
     const res = await fetch(`${ENDPOINT}?${qs}`);
-    return res.json();
+    return checked(res);
+  }
+
+  // Treat HTTP failures and {error: ...} replies as real errors, so the badge shows "⚠ sync error"
+  async function checked(res) {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if (json && json.error) throw new Error(json.error);
+    return json;
   }
 
   return {
@@ -1004,6 +1012,7 @@ function isSeeded() {
     || sessionStorage.getItem('tf3_seeded') === '1';
 }
 
+let resyncNeeded = false;
 async function loadData() {
   // Show a subtle loading state
   document.getElementById('col-today').innerHTML = '<div class="empty-col">Loading…</div>';
@@ -1018,6 +1027,19 @@ async function loadData() {
     if (data.tf3_completions) completions = JSON.parse(data.tf3_completions);
     if (data.tf3_categories)  categories  = JSON.parse(data.tf3_categories);
     if (data.tf3_projects)    projects    = JSON.parse(data.tf3_projects);
+
+    // Completions are append-only, so never let a reload drop entries that only exist
+    // on this device (e.g. a save that failed). Merge them back in and re-sync.
+    try {
+      const local = JSON.parse(localStorage.getItem('tf3_completions') || '[]');
+      const serverIds = new Set(completions.map(c => String(c.id)));
+      const missing = local.filter(c => c && c.id != null && !serverIds.has(String(c.id)));
+      if (missing.length && tasks.length) {
+        completions = completions.concat(missing).sort((a, b) => Number(a.id) - Number(b.id));
+        console.warn(`Recovered ${missing.length} local completion(s) not yet on the server — re-syncing`);
+        resyncNeeded = true;
+      }
+    } catch (e) { console.warn('Local completion merge skipped:', e); }
 
     // If Sheets is empty AND this is a genuine first run, seed default data
     if (!tasks.length && !categories.length) {
@@ -1045,6 +1067,7 @@ async function loadData() {
   checkReminders();
   setInterval(checkReminders, 30*60*1000);
   renderBoard();
+  if (resyncNeeded) { resyncNeeded = false; save(); }
 }
 
 function runSeed() {
